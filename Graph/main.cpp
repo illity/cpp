@@ -1,5 +1,30 @@
 #include <iostream>
+#include <pdcurses/curses.h>
 using namespace std;
+
+
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#define VC_EXTRALEAN
+#include <Windows.h>
+#elif defined(__linux__)
+#include <sys/ioctl.h>
+#endif // Windows/Linux
+
+void get_terminal_size(int& width, int& height) {
+#if defined(_WIN32)
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    width = (int)(csbi.srWindow.Right-csbi.srWindow.Left+1);
+    height = (int)(csbi.srWindow.Bottom-csbi.srWindow.Top+1);
+#elif defined(__linux__)
+    struct winsize w;
+    ioctl(fileno(stdout), TIOCGWINSZ, &w);
+    width = (int)(w.ws_col);
+    height = (int)(w.ws_row);
+#endif // Windows/Linux
+}
 
 template <class T>
 class LinkedList {
@@ -53,7 +78,7 @@ class Graph {
         //1 4 -1 0 2 4 -1 1 3 -1 2 4 5 -1 0 1 3 -1 3 -2
         //equivale a [[1,4],[0,2,4],[1,3],[2,4,5],[0,1,3],[3]]
         // adjacencyList = new Node<Node<int>>();
-        length = -1;
+        length = 0;
         for (int i = 0; i < str.length(); i++) {if (str[i]=='-') length++;}
         adjacencyList= new LinkedList<int>[length];
         LinkedList<int> temp = LinkedList<int>();
@@ -86,6 +111,26 @@ class Graph {
     }
 };
 
+class Point {
+    public:
+        double x, y;
+        Point(): x(x), y(y) {};
+};
+
+
+void drawPoints(Point* p, int length) {
+    int width, height;
+    get_terminal_size(width, height);
+    double minX = -1, minY = -1;
+    double maxX = 1, maxY = 1;
+
+    // return;
+    for (int i = 0; i < length; i++) {
+        mvaddch(height*(p[i].y - minY)/(maxY - minY),
+                width *(p[i].x - minX)/(maxX - minX),i+0x30);
+    }
+}
+
 int main() {
     // LinkedList<int> l = LinkedList<int>();
     // l.insert(1);
@@ -97,8 +142,31 @@ int main() {
     // l2[0] = l;
 
     Graph g = Graph("1 4 -1 0 2 4 -1 1 3 -1 2 4 5 -1 0 1 3 -1 3 -2");
-    g.printList();
-    // cout << g.adjacencyList->data.data;
-    // cout << g.adjacencyList->data.next->data;
+    // g.printList();
+
+    Point *points = new Point[g.length];
+    for (int i = 0; i < g.length; i++) {
+        points[i].x = (rand()%100)/100.0;
+        points[i].y = (rand()%100)/100.0;
+    }
+
+
+    double k_elet = .0001;
+    initscr();
+    for (int it = 0; it < 10000; it++) {
+        for (int i = 0; i < g.length; i++) {
+
+            for (int j = 0; i < g.length; i++) {
+                if (i == j) continue;
+                double d = (points[i].x-points[j].x)*(points[i].x-points[j].x) + (points[i].y-points[j].y)*(points[i].y-points[j].y);
+                points[i].x += k_elet*(points[i].x-points[j].x)/d;
+                points[i].y += k_elet*(points[i].y-points[j].y)/d;
+            }
+        }
+        drawPoints(points, g.length);
+        refresh();
+    }
+    endwin();
+
     return 0;
 }
