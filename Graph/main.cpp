@@ -2,6 +2,11 @@
 #include <pdcurses/curses.h>
 using namespace std;
 
+#define minX -5.0
+#define minY -5.0
+#define maxX 5.0
+#define maxY 5.0
+
 
 
 #if defined(_WIN32)
@@ -114,21 +119,41 @@ class Graph {
 class Point {
     public:
         double x, y;
-        Point(): x(x), y(y) {};
+        Point() {};
+        Point(double x, double y): x(x), y(y) {};
 };
 
 
 void drawPoints(Point* p, int length) {
     int width, height;
     get_terminal_size(width, height);
-    double minX = -1, minY = -1;
-    double maxX = 1, maxY = 1;
-
-    // return;
     for (int i = 0; i < length; i++) {
         mvaddch(height*(p[i].y - minY)/(maxY - minY),
-                width *(p[i].x - minX)/(maxX - minX),i+0x30);
+                width *(p[i].x - minX)/(maxX - minX),i+1+0x30);
     }
+}
+
+void drawLine(Point p0, Point pf) {
+    int width, height;
+    get_terminal_size(width, height);
+    int x0 = width *(p0.x - minX)/(maxX - minX);
+    int y0 = height*(p0.y - minY)/(maxY - minY);
+    int xf = width *(pf.x - minX)/(maxX - minX);
+    int yf = height*(pf.y - minY)/(maxY - minY);
+    int t = max(abs(yf-y0),abs(xf-x0));
+    for (int i = 0; i<t; i++) {
+        mvaddch(y0+i*(yf-y0)/t,
+                x0+i*(xf-x0)/t,'.');
+    }
+}
+
+double sqrt(double x) {
+    double tol = 1e-8*x;
+    double x0 = x;
+    while (x0-x/x0>tol || x0-x/x0<-tol) {
+        x0 -= (x0-x/x0)/2;
+    }
+    return x0;
 }
 
 int main() {
@@ -151,19 +176,43 @@ int main() {
     }
 
 
-    double k_elet = .0001;
+    double k_elas = .02;
+    double k_elet = .1;
+    double k_grav = .01;
+    double comprimento = 1;
     initscr();
-    for (int it = 0; it < 10000; it++) {
-        for (int i = 0; i < g.length; i++) {
-
-            for (int j = 0; i < g.length; i++) {
+    for (int it = 0; it < 2000; it++) {
+        for (int i = 0; i < g.length; i++) {         
+            points[i].x -= k_grav * sqrt(points[i].x * points[i].x + points[i].y * points[i].y) * points[i].x;
+            points[i].y -= k_grav * sqrt(points[i].x * points[i].x + points[i].y * points[i].y) * points[i].y;
+            LinkedList<int>::Node* temp = g.adjacencyList[i].start;
+            while(temp) {
+                int j = temp->data;
+                double d = (points[i].x-points[j].x)*(points[i].x-points[j].x) + (points[i].y-points[j].y)*(points[i].y-points[j].y);
+                d = sqrt(d) - 1;
+                points[i].x -= k_elas*(points[i].x-points[j].x)/d;
+                points[i].y -= k_elas*(points[i].y-points[j].y)/d;
+                temp = temp->next;
+            }
+            for (int j = 0; j < g.length; j++) {
                 if (i == j) continue;
                 double d = (points[i].x-points[j].x)*(points[i].x-points[j].x) + (points[i].y-points[j].y)*(points[i].y-points[j].y);
                 points[i].x += k_elet*(points[i].x-points[j].x)/d;
                 points[i].y += k_elet*(points[i].y-points[j].y)/d;
             }
         }
-        drawPoints(points, g.length);
+        {
+            clear();
+            for (int i = 0; i < g.length; i++) {
+                LinkedList<int>::Node* temp = g.adjacencyList[i].start;
+                while(temp) {
+                    int j = temp->data;
+                    if (i<j) drawLine(points[i],points[j]);
+                    temp = temp->next;
+                }
+            }
+            drawPoints(points, g.length);
+        }
         refresh();
     }
     endwin();
