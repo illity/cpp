@@ -1,5 +1,6 @@
 #include <iostream>
 #include <pdcurses/curses.h>
+#include <bits/stdc++.h>
 using namespace std;
 
 #define minX -5.0
@@ -116,37 +117,44 @@ class LinkedList {
             temp = temp->next;
             if (temp) cout << ", ";
         }
+        cout << "\n";
     }
 };
 
+
 class Graph {
     public:
+    class Edge {
+        public:
+        int vertice;
+        double weight = 0;
+        Edge() {};
+        Edge(int vertice): vertice(vertice) {};
+        
+    };
     int length;
-    LinkedList<int> *adjacencyList;
-    LinkedList<float> *weightList;
+    LinkedList<Edge> *adjacencyList;
     bool weighted = false;
     Graph() {};
     Graph(string str) {
         // 1 4 -1 0 2 4 -1 1 3 -1 2 4 5 -1 0 1 3 -1 3 -2
         // equivale a [[1,4],[0,2,4],[1,3],[2,4,5],[0,1,3],[3]]
-        // adjacencyList = new Node<Node<int>>();
-        length = 0;
+        length = -1;
         for (int i = 0; i < str.length(); i++) {if (str[i]=='-') length++;}
-        adjacencyList= new LinkedList<int>[length];
-        LinkedList<int> temp = LinkedList<int>();
+        adjacencyList= new LinkedList<Edge>[length];
+        LinkedList<Edge> temp = LinkedList<Edge>();
         int number = 0;
         bool sign = false;
         int count = 0;
         for (int i = 0; i < str.length(); i++) {
-            if (str[i] == -2) break;
-            else if (str[i] == ' ') {
+            if (str[i] == ' ') {
                 if (number == -1) {
                     adjacencyList[count] = temp;
-                    temp = LinkedList<int>();
+                    temp = LinkedList<Edge>();
                     count++;
                 }
                 else {
-                    temp.insert(number);
+                    temp.insert(Edge(number));
                 }
                 number = 0;
                 sign = false;
@@ -157,24 +165,19 @@ class Graph {
     }
     Graph(string str, string weights): Graph(str) {
         weighted = true;
-        length = 0;
-        for (int i = 0; i < weights.length(); i++) {if (weights[i]=='-') length++;}
-        weightList = new LinkedList<float>[length];
-        LinkedList<float> temp = LinkedList<float>();
+        LinkedList<Edge>::Node *temp = adjacencyList[0].start;
         int number = 0;
         bool sign = false;
         int count = 0;
         for (int i = 0; i < weights.length(); i++) {
-            if (weights[i] == -2) break;
-            else if (weights[i] == ' ') {
+            if (weights[i] == ' ') {
                 if (number == -1) {
-                    weightList[count] = temp;
-                    temp = LinkedList<float>();
-                    count++;
+                    // cout << count;
+                    temp = adjacencyList[++count].start;
                 }
                 else {
-                    cout;
-                    temp.insert(number);
+                    temp->data.weight = number;
+                    temp = temp->next;
                 }
                 number = 0;
                 sign = false;
@@ -182,13 +185,11 @@ class Graph {
             else if (weights[i] == '-') sign = true;
             else number = number*10 + (sign?-1:1)*(weights[i]-0x30);
         }
-        
     }
+
     void printList() {
         for (int i = 0; i < length; i++) {
-            // adjacencyList[i].print();
-            // weightList[i].print();
-            if (i<length-1) cout << "\n";
+            adjacencyList[i].print();
         }
     }
 
@@ -209,9 +210,9 @@ class Graph {
             for (int i = 0; i < length; i++) {         
                 points[i].x -= k_grav * sqrt(points[i].x * points[i].x + points[i].y * points[i].y) * points[i].x;
                 points[i].y -= k_grav * sqrt(points[i].x * points[i].x + points[i].y * points[i].y) * points[i].y;
-                LinkedList<int>::Node* temp = adjacencyList[i].start;
+                LinkedList<Edge>::Node* temp = adjacencyList[i].start;
                 while(temp) {
-                    int j = temp->data;
+                    int j = temp->data.vertice;
                     double d = (points[i].x-points[j].x)*(points[i].x-points[j].x) + (points[i].y-points[j].y)*(points[i].y-points[j].y);
                     d = sqrt(d) - 1;
                     points[i].x -= k_elas*(points[i].x-points[j].x)/d;
@@ -229,40 +230,110 @@ class Graph {
                 clear();
                 int ligacao = 0;
                 for (int i = 0; i < length; i++) {
-                    LinkedList<int>::Node* temp = adjacencyList[i].start;
-                    LinkedList<float>::Node* temp2 = weightList[i].start;
+                    LinkedList<Edge>::Node* temp = adjacencyList[i].start;
                     
                     while(temp) {
-                        int j = temp->data;
+                        int j = temp->data.vertice;
                         if (i<j) {
                             drawLine(points[i],points[j], ".,#-_=+*/"[ligacao]);
                             ligacao+=1;
-                            cout << ligacao;
                         }
                         temp = temp->next;
-                        temp2 = temp2->next;
                     }
                     temp = adjacencyList[i].start;
-                    temp2 = weightList[i].start;
                     
                     while(temp) {
-                        int j = temp->data;
-                        if (weighted) drawPoint((points[i].x+points[j].x)/2, (points[i].y+points[j].y)/2, temp2->data);
+                        int j = temp->data.vertice;
+                        if (weighted) drawPoint((points[i].x+points[j].x)/2, (points[i].y+points[j].y)/2, temp->data.weight);
                         temp = temp->next;
-                        temp2 = temp2->next;
                     }
                 }
                 drawPoints(points, length);
             }
             refresh();
         }
-            getchar();
+        getchar();
         endwin();
+    }
 
- 
+    void prim() {
+        double min = adjacencyList[0].start->data.weight;
+        set<int> visited = set<int>();
+        int head, tail;
+        LinkedList<Edge>* newAdjacencyList = new LinkedList<Edge>[length];
+
+        for (int i = 0; i < length; i++) {
+            LinkedList<Edge>::Node* temp = adjacencyList[i].start;
+            int j = 0;
+            while (temp) {
+                if (temp->data.weight < min) {
+                    min = temp->data.weight;
+                    head = i;
+                    tail = temp->data.vertice;
+                }
+                temp = temp->next;
+                j++;
+            }
+        }
+        newAdjacencyList[head] = LinkedList<Edge>();
+        newAdjacencyList[head].insert(tail);
+        newAdjacencyList[tail].insert(head);
+        visited.insert(head);
+        visited.insert(tail);
+        while(1) {
+            LinkedList<Edge>::Node* temp = adjacencyList[head].start;
+            int oldHead = head;
+            int oldTail = tail;
+            // Torna o novo mínimo qualquer um que não tenha sido visitado ainda
+            while(temp) {
+                if (!visited.count(temp->data.vertice)) {
+                    min = temp->data.weight;
+                    head = temp->data.vertice;
+                    break;
+                }
+                temp = temp -> next;
+            }
+            // Visita todos os nós do head, para encontrar o menor entre eles, esse será o novo head, exceto se houver um candidato a novo tail que seja melhor
+            while(temp) {
+                if (!visited.count(temp->data.vertice) && temp->data.weight < min) {
+                    min = temp->data.weight;
+                    head = temp->data.vertice;
+                }
+                temp = temp -> next;
+            }
+            // Visita todos os nós do tail, para encontrar o menor entre eles, destrona o antigo head se encontrar algum.
+            temp = adjacencyList[tail].start;
+            while(temp) {
+                if (temp->data.weight < min && !visited.count(temp->data.vertice)) {
+                    min = temp->data.weight;
+                    tail = temp->data.vertice;
+                    head = oldHead;
+                }
+                temp = temp -> next;
+            }
+            if (head == oldHead) {
+                // cout << oldTail << tail;
+                visited.insert(tail);
+            }
+            else {
+                // cout << oldHead << head;
+                visited.insert(head);
+            }
+            // cout << ",";
+            if (visited.size() == length) break;
+        }
+
+
+        newAdjacencyList[5].print();
+        visited.size();
+        // cout << "(" << head << ", " << tail << ") - " << min;
     }
 };
 
+std::ostream& operator<<(std::ostream& os, const Graph::Edge& obj) {
+      os << obj.vertice;
+      return os;
+}
 
 int main() {
     // LinkedList<int> l = LinkedList<int>();
@@ -282,9 +353,10 @@ int main() {
     // 3 5 6
     // 0 4
     // 1 3 4
-    Graph g = Graph("1 5 -1 0 2 6 -1 1 3 -1 2 4 6 -1 3 5 6 -1 0 4 -1 1 3 4 -2", "28 10 -1 28 16 14 -1 16 12 -1 12 22 18 -1 22 25 24 -1 10 25 -1 14 24 -2");
+    Graph g = Graph("1 5 -1 0 2 6 -1 1 3 -1 2 4 6 -1 3 5 6 -1 0 4 -1 1 3 4 -1 -2", "28 10 -1 28 16 14 -1 16 12 -1 12 22 18 -1 22 25 24 -1 10 25 -1 14 18 24 -1 -2");
     g.printList();
-    g.draw();
+    // cout << g.adjacencyList[0].start->data.weight;
+    g.prim();
     // g.draw();
 
    return 0;
