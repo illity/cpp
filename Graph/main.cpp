@@ -97,6 +97,7 @@ class LinkedList {
     Node *start;
     Node *last;
     LinkedList(): start(NULL), last(NULL) {};
+    LinkedList(T d): LinkedList() {insert(d);};
     ~LinkedList() {
         if(start) delete start;
     }
@@ -130,6 +131,7 @@ class Graph {
         double weight = 0;
         Edge() {};
         Edge(int vertice): vertice(vertice) {};
+        Edge(int vertice, double weight): vertice(vertice), weight(weight) {};
         
     };
     int length;
@@ -149,7 +151,7 @@ class Graph {
         for (int i = 0; i < str.length(); i++) {
             if (str[i] == ' ') {
                 if (number == -1) {
-                    adjacencyList[count] = temp;
+                    adjacencyList[count ] = temp;
                     temp = LinkedList<Edge>();
                     count++;
                 }
@@ -262,6 +264,7 @@ class Graph {
         int head, tail;
         LinkedList<Edge>* newAdjacencyList = new LinkedList<Edge>[length];
 
+        for (int i = 0; i<length; i++) newAdjacencyList[i] = LinkedList<Edge>();
         for (int i = 0; i < length; i++) {
             LinkedList<Edge>::Node* temp = adjacencyList[i].start;
             int j = 0;
@@ -275,9 +278,8 @@ class Graph {
                 j++;
             }
         }
-        newAdjacencyList[head] = LinkedList<Edge>();
-        newAdjacencyList[head].insert(tail);
-        newAdjacencyList[tail].insert(head);
+        newAdjacencyList[head].insert(Edge(tail, min));
+        newAdjacencyList[tail].insert(Edge(head, min));
         visited.insert(head);
         visited.insert(tail);
         while(1) {
@@ -313,51 +315,43 @@ class Graph {
             }
             if (head == oldHead) {
                 // cout << oldTail << tail;
+                newAdjacencyList[oldTail].insert(Edge(tail, min));
+                newAdjacencyList[tail].insert(Edge(oldTail, min));
                 visited.insert(tail);
             }
             else {
                 // cout << oldHead << head;
-                visited.insert(head);
+                newAdjacencyList[oldHead] = LinkedList<Edge>(Edge(head, min));
+                newAdjacencyList[head] = LinkedList<Edge>(Edge(oldHead, min));
             }
-            // cout << ",";
             if (visited.size() == length) break;
         }
-
-
-        newAdjacencyList[5].print();
+        adjacencyList = newAdjacencyList;
         visited.size();
-        // cout << "(" << head << ", " << tail << ") - " << min;
     }
 };
 
+template <class T>
+std::ostream& operator<<(std::ostream& os, const LinkedList<T>& obj) {
+    for (typename LinkedList<T>::Node *x = obj.start; x; x = x->next) os << x->data << (x->next?", ":" ");
+    return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const Graph::Edge& obj) {
-      os << obj.vertice;
-      return os;
+    os << "(" << obj.vertice << ", " << obj.weight << ")";
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Graph& obj) {
+    for (int i = 0; i < obj.length; i++) os << obj.adjacencyList[i] << "\n";
+    return os;
 }
 
 int main() {
-    // LinkedList<int> l = LinkedList<int>();
-    // l.insert(1);
-    // l.insert(2);
-    // cout << l.start->data;
-
-    // int length = 1;
-    // LinkedList<int> *l2 = new LinkedList<int>[20];
-    // l2[0] = l;
-
-
-    // 1 5
-    // 0 2 6
-    // 1 3
-    // 2 4 6
-    // 3 5 6
-    // 0 4
-    // 1 3 4
     Graph g = Graph("1 5 -1 0 2 6 -1 1 3 -1 2 4 6 -1 3 5 6 -1 0 4 -1 1 3 4 -1 -2", "28 10 -1 28 16 14 -1 16 12 -1 12 22 18 -1 22 25 24 -1 10 25 -1 14 18 24 -1 -2");
-    g.printList();
-    // cout << g.adjacencyList[0].start->data.weight;
+    cout << "Initial Graph: \n" << g << "\n";
     g.prim();
+    cout << "Minimum cost spanning tree - Plim's algorithm\n" << g;
     // g.draw();
-
    return 0;
 }
