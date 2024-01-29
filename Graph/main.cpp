@@ -111,15 +111,6 @@ class LinkedList {
             last = temp;
         }
     }
-    void print() {
-        Node *temp = start;
-        while(temp) {
-            cout << temp->data;
-            temp = temp->next;
-            if (temp) cout << ", ";
-        }
-        cout << "\n";
-    }
 };
 
 
@@ -189,12 +180,6 @@ class Graph {
         }
     }
 
-    void printList() {
-        for (int i = 0; i < length; i++) {
-            adjacencyList[i].print();
-        }
-    }
-
     void draw() {
         Point *points = new Point[length];
         for (int i = 0; i < length; i++) {
@@ -212,14 +197,12 @@ class Graph {
             for (int i = 0; i < length; i++) {         
                 points[i].x -= k_grav * sqrt(points[i].x * points[i].x + points[i].y * points[i].y) * points[i].x;
                 points[i].y -= k_grav * sqrt(points[i].x * points[i].x + points[i].y * points[i].y) * points[i].y;
-                LinkedList<Edge>::Node* temp = adjacencyList[i].start;
-                while(temp) {
+                for(LinkedList<Edge>::Node* temp = adjacencyList[i].start; temp; temp = temp->next) {
                     int j = temp->data.vertice;
                     double d = (points[i].x-points[j].x)*(points[i].x-points[j].x) + (points[i].y-points[j].y)*(points[i].y-points[j].y);
                     d = sqrt(d) - 1;
                     points[i].x -= k_elas*(points[i].x-points[j].x)/d;
                     points[i].y -= k_elas*(points[i].y-points[j].y)/d;
-                    temp = temp->next;
                 }
                 for (int j = 0; j < length; j++) {
                     if (i == j) continue;
@@ -230,24 +213,20 @@ class Graph {
             }
             {
                 clear();
-                int ligacao = 0;
-                for (int i = 0; i < length; i++) {
-                    LinkedList<Edge>::Node* temp = adjacencyList[i].start;
-                    
-                    while(temp) {
+                int connections = 0;
+                for (int i = 0; i < length; i++) {                    
+                    // Draw the edges
+                    for(LinkedList<Edge>::Node* temp = adjacencyList[i].start; temp; temp = temp->next) {
                         int j = temp->data.vertice;
                         if (i<j) {
-                            drawLine(points[i],points[j], ".,#-_=+*/"[ligacao]);
-                            ligacao+=1;
+                            drawLine(points[i],points[j], ".,#-_=+*/"[connections]);
+                            connections+=1;
                         }
-                        temp = temp->next;
                     }
-                    temp = adjacencyList[i].start;
-                    
-                    while(temp) {
+                    // Write the weights
+                    for(LinkedList<Edge>::Node* temp = adjacencyList[i].start; temp; temp = temp->next) {
                         int j = temp->data.vertice;
                         if (weighted) drawPoint((points[i].x+points[j].x)/2, (points[i].y+points[j].y)/2, temp->data.weight);
-                        temp = temp->next;
                     }
                 }
                 drawPoints(points, length);
@@ -266,16 +245,12 @@ class Graph {
 
         for (int i = 0; i<length; i++) newAdjacencyList[i] = LinkedList<Edge>();
         for (int i = 0; i < length; i++) {
-            LinkedList<Edge>::Node* temp = adjacencyList[i].start;
-            int j = 0;
-            while (temp) {
+            for (LinkedList<Edge>::Node* temp = adjacencyList[i].start; temp; temp = temp->next) {
                 if (temp->data.weight < min) {
                     min = temp->data.weight;
                     head = i;
                     tail = temp->data.vertice;
                 }
-                temp = temp->next;
-                j++;
             }
         }
         newAdjacencyList[head].insert(Edge(tail, min));
@@ -287,31 +262,28 @@ class Graph {
             int oldHead = head;
             int oldTail = tail;
             // Torna o novo mínimo qualquer um que não tenha sido visitado ainda
-            while(temp) {
+            for(;temp ; temp = temp -> next) {
                 if (!visited.count(temp->data.vertice)) {
                     min = temp->data.weight;
                     head = temp->data.vertice;
                     break;
                 }
-                temp = temp -> next;
             }
             // Visita todos os nós do head, para encontrar o menor entre eles, esse será o novo head, exceto se houver um candidato a novo tail que seja melhor
-            while(temp) {
+            for(;temp ; temp = temp -> next) {
                 if (!visited.count(temp->data.vertice) && temp->data.weight < min) {
                     min = temp->data.weight;
                     head = temp->data.vertice;
                 }
-                temp = temp -> next;
             }
             // Visita todos os nós do tail, para encontrar o menor entre eles, destrona o antigo head se encontrar algum.
             temp = adjacencyList[tail].start;
-            while(temp) {
+            for(;temp ; temp = temp -> next) {
                 if (temp->data.weight < min && !visited.count(temp->data.vertice)) {
                     min = temp->data.weight;
                     tail = temp->data.vertice;
                     head = oldHead;
                 }
-                temp = temp -> next;
             }
             if (head == oldHead) {
                 // cout << oldTail << tail;
